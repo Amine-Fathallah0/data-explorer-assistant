@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Télémétrie — Data Explorer</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/boosted/css/boosted.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='custom.css') }}">
+</head>
+<body>
+
+<div class="main-panel">
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top timing-header">
+  <div class="container-fluid flex-wrap gap-2">
+    <span class="live-dot" aria-hidden="true"></span>
+    <div class="navbar-brand-group me-auto">
+      <span class="navbar-brand mb-0">Télémétrie</span>
+      <p class="subtitle mb-0">Stand des ingénieurs · statistiques d'usage · Data Explorer</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('schema') }}">Schéma →</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">← Retour au chat</a>
+  </div>
+</nav>
+
+<main class="dashboard-main">
+  <div class="telemetry-grid">
+
+    <div class="card telemetry-panel">
+      <div class="card-body">
+        <span class="panel-label">Conversations créées</span>
+        <span class="panel-value">{{ stats.total_conversations }}</span>
+        <span class="panel-sub">sessions au total</span>
+      </div>
+    </div>
+
+    <div class="card telemetry-panel">
+      <div class="card-body">
+        <span class="panel-label">Questions posées</span>
+        <span class="panel-value">{{ stats.total_questions }}</span>
+        <span class="panel-sub">{{ stats.total_assistant_messages }} réponses générées</span>
+      </div>
+    </div>
+
+    <div class="card telemetry-panel">
+      <div class="card-body">
+        <span class="panel-label">Temps de réponse moyen</span>
+        {% if stats.avg_response_time_ms is not none %}
+        <span class="panel-value">{{ "%.1f"|format(stats.avg_response_time_ms / 1000) }}<span class="unit">s</span></span>
+        <span class="panel-sub">min {{ "%.1f"|format(stats.response_time_min_ms / 1000) }}s · max {{ "%.1f"|format(stats.response_time_max_ms / 1000) }}s</span>
+        {% if stats.response_time_trend_delta_ms is not none %}
+        <span class="panel-delta {{ 'up' if stats.response_time_trend_delta_ms > 0 else 'down' }}">
+          {{ '▲' if stats.response_time_trend_delta_ms > 0 else '▼' }} {{ "%.1f"|format(stats.response_time_trend_delta_ms|abs / 1000) }}s vs période précédente
+        </span>
+        {% endif %}
+        {% if stats.response_time_sparkline %}
+        <div class="sparkline" aria-hidden="true">
+          {% for pt in stats.response_time_sparkline %}
+          <span class="spark-bar{% if loop.last %} current{% endif %}" style="height: {{ pt.height_pct }}%;"></span>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% else %}
+        <span class="panel-value">—</span>
+        <span class="panel-sub">aucune mesure disponible</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card telemetry-panel">
+      <div class="card-body">
+        <span class="panel-label">Longueur moyenne des réponses</span>
+        {% if stats.avg_response_words is not none %}
+        <span class="panel-value">{{ stats.avg_response_words | round | int }}<span class="unit">mots</span></span>
+        <span class="panel-sub">≈ {{ stats.avg_response_chars | round | int }} caractères</span>
+        {% else %}
+        <span class="panel-value">—</span>
+        <span class="panel-sub">aucune réponse enregistrée</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card telemetry-panel">
+      <div class="card-body">
+        <span class="panel-label">Sorties de piste</span>
+        {% if stats.off_track_pct is not none %}
+        <span class="panel-value{{ ' text-danger' if stats.off_track_pct > 15 else '' }}">{{ stats.off_track_pct | round(1) }}<span class="unit">%</span></span>
+        <span class="panel-sub">{{ stats.off_track_count }} / {{ stats.total_assistant_messages }} réponses hors périmètre</span>
+        {% else %}
+        <span class="panel-value">—</span>
+        <span class="panel-sub">aucune donnée</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card telemetry-panel telemetry-panel--wide">
+      <div class="card-body">
+        <span class="panel-label">Distribution des temps de réponse</span>
+        {% if stats.response_time_distribution %}
+        <div class="histogram">
+          {% for bucket in stats.response_time_distribution %}
+          <div class="histogram-col">
+            <span class="histogram-count">{{ bucket.count }}</span>
+            <div class="histogram-bar" style="height: {{ bucket.height_pct }}%;"></div>
+            <span class="histogram-label">{{ bucket.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-data">Pas encore assez de mesures pour tracer une distribution.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card telemetry-panel">
+      <div class="card-body">
+        <span class="panel-label">Question la plus longue</span>
+        {% if stats.longest_question %}
+        <span class="panel-value">{{ stats.longest_question.length }}<span class="unit">car.</span></span>
+        <p class="readout-text">« {{ stats.longest_question.text | truncate(140) }} »</p>
+        {% else %}
+        <span class="panel-value">—</span>
+        <span class="panel-sub">aucune question enregistrée</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card telemetry-panel">
+      <div class="card-body">
+        <span class="panel-label">Question la plus courte</span>
+        {% if stats.shortest_question %}
+        <span class="panel-value">{{ stats.shortest_question.length }}<span class="unit">car.</span></span>
+        <p class="readout-text">« {{ stats.shortest_question.text }} »</p>
+        {% else %}
+        <span class="panel-value">—</span>
+        <span class="panel-sub">aucune question enregistrée</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+</body>
+</html>

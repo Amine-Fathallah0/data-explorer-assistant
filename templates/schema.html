@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schéma — Data Explorer</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/boosted/css/boosted.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='custom.css') }}">
+</head>
+<body>
+
+<div class="main-panel">
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top timing-header">
+  <div class="container-fluid flex-wrap gap-2">
+    <span class="live-dot" aria-hidden="true"></span>
+    <div class="navbar-brand-group me-auto">
+      <span class="navbar-brand mb-0">Schéma</span>
+      <p class="subtitle mb-0">Graphe des tables et relations · bio_vente &amp; bio_refgeographie</p>
+    </div>
+    <div class="schema-search-wrap">
+      <input
+        type="search"
+        class="form-control schema-search"
+        id="schema-search"
+        placeholder="Rechercher une table ou colonne..."
+        autocomplete="off"
+      >
+      <div class="schema-search-suggestions hidden" id="schema-search-suggestions"></div>
+    </div>
+    {% if session.get('role') == 'tech_lead' %}
+    <button class="btn btn-outline-secondary" id="my-drafts-btn" type="button">Mes brouillons</button>
+    <button class="btn btn-outline-secondary" id="new-table-btn" type="button">+ Nouvelle table</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Télémétrie →</a>
+    {% endif %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('index') }}">← Retour au chat</a>
+  </div>
+</nav>
+
+<main class="schema-main">
+  <div class="schema-graph-wrap">
+    <div id="schema-cy"></div>
+    <p class="schema-empty hidden" id="schema-empty">Impossible de charger le schéma.</p>
+    <!-- Légende : trois états visuels coexistent désormais, et rien à l'écran ne dit que
+         les arêtes se déplacent. Sans ce repère, le pointillé gris se lit comme un défaut
+         de rendu plutôt que comme « cible prouvée distincte mais jamais identifiée ». -->
+    <div class="schema-legend" id="schema-legend">
+      <span class="schema-legend-item"><i class="schema-legend-swatch swatch-solid"></i>dimension documentée</span>
+      <span class="schema-legend-item"><i class="schema-legend-swatch swatch-dotted"></i>cible non documentée</span>
+      <span class="schema-legend-item"><i class="schema-legend-swatch swatch-dashed"></i>cible inconnue (⚠️ distincte confirmée)</span>
+      <span class="schema-legend-item"><i class="schema-legend-badge">?</i>FK sans cible — voir la colonne dans la table</span>
+      <span class="schema-legend-hint">Glisser un lien pour l'écarter · double-clic pour le remettre en place</span>
+    </div>
+  </div>
+  <aside class="schema-details" id="schema-details">
+    <div class="schema-details-placeholder" id="schema-details-placeholder">
+      <p>Cliquez sur une table pour voir ses colonnes et ses relations.</p>
+    </div>
+    <div class="schema-details-content hidden" id="schema-details-content">
+      <span class="schema-details-kind" id="schema-details-kind">Table</span>
+      <h2 class="schema-details-title" id="schema-details-title"></h2>
+      <p class="schema-details-type" id="schema-details-type"></p>
+      <div class="schema-column-list" id="schema-column-list"></div>
+    </div>
+    <div id="schema-correction-mount"></div>
+    <div id="schema-builder-mount"></div>
+  </aside>
+</main>
+</div>
+
+<!-- Gabarit du panneau de correction inline, partagé avec le chat (voir static/correction.js) :
+     cloné puis monté dans #schema-correction-mount, réservé au tech lead (voir schema.js). -->
+<template id="correction-inline-template">
+  <div class="correction-inline hidden">
+    <div class="correction-inline-body">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="correction-inline-title">Corriger <code data-correction-target></code></span>
+        <button type="button" class="btn-close" data-correction-close aria-label="Fermer"></button>
+      </div>
+      <div class="mb-2">
+        <textarea class="form-control" data-correction-input rows="3" placeholder="Écrivez votre correction, n'importe quel style..."></textarea>
+      </div>
+      <div class="mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-correction-prepare>Préparer la correction</button>
+      </div>
+      <div data-correction-preview class="hidden mb-2">
+        <div class="mb-3">
+          <label class="form-label small">Correction principale — réécrite au style de la doc (éditable)</label>
+          <textarea class="form-control" data-correction-primary rows="4"></textarea>
+        </div>
+        <div data-correction-propagations></div>
+      </div>
+      <p class="text-danger small hidden mb-2" data-correction-error></p>
+      <p class="text-success small hidden mb-2" data-correction-success></p>
+      <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-correction-cancel>Annuler</button>
+        <button type="button" class="btn btn-primary btn-sm" data-correction-apply disabled>Confirmer et appliquer</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Gabarit du panneau de création de table, monté dans #schema-builder-mount (voir
+     static/table_builder.js). Une table en cours de création est aussi placée comme
+     noeud (en pointillés) directement sur le graphe cytoscape existant : les relations
+     se choisissent en cliquant une table/colonne réelle sur ce graphe, pas via un champ
+     texte libre (voir createTableBuilder → mode liaison). -->
+<template id="table-builder-template">
+  <div class="table-builder hidden">
+    <div class="table-builder-body">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="table-builder-title">Nouvelle table</span>
+        <button type="button" class="btn-close" data-tb-close aria-label="Fermer"></button>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small">Nom de la table</label>
+        <input type="text" class="form-control" data-tb-name placeholder="ex. dwh_dim_Conseiller_t" autocomplete="off">
+      </div>
+      <div class="mb-2">
+        <label class="form-label small">Dataset d'accueil</label>
+        <!-- Peuplé au chargement depuis /api/datasets : la liste vient des sous-dossiers
+             réellement présents dans la Knowledge Base, jamais d'une liste en dur. -->
+        <select class="form-select" data-tb-dataset></select>
+      </div>
+      <div class="mb-2">
+        <label class="form-label small">Grain (logique métier)</label>
+        <textarea class="form-control" data-tb-grain rows="2" placeholder="une ligne par..."></textarea>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small">Colonnes</label>
+        <div data-tb-columns></div>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-1" data-tb-add-column>+ Colonne</button>
+      </div>
+
+      <div class="mb-2">
+        <label class="form-label small">Règles métier additionnelles</label>
+        <div data-tb-rules></div>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-1" data-tb-add-rule>+ Règle</button>
+      </div>
+
+      <p class="table-builder-link-banner hidden" data-tb-link-banner>
+        Mode liaison : cliquez sur la table cible dans le graphe.
+        <button type="button" class="btn btn-link btn-sm p-0" data-tb-link-cancel>Annuler</button>
+      </p>
+      <div class="hidden" data-tb-target-picker></div>
+
+      <div class="mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-tb-preview>Aperçu Markdown</button>
+      </div>
+      <pre class="hidden table-builder-preview" data-tb-preview-output></pre>
+
+      <p class="text-danger small hidden mb-2" data-tb-error></p>
+      <p class="text-success small hidden mb-2" data-tb-success></p>
+
+      <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-tb-close-btn>Fermer</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-tb-save>Enregistrer le brouillon</button>
+        <button type="button" class="btn btn-primary btn-sm" data-tb-publish disabled>Enregistrer et publier</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="table-builder-column-row-template">
+  <div class="table-builder-column-row">
+    <div class="table-builder-column-row-fields">
+      <input type="text" class="form-control form-control-sm" data-col-name placeholder="nom">
+      <input type="text" class="form-control form-control-sm" data-col-type placeholder="TYPE" list="table-builder-type-options">
+      <textarea class="form-control form-control-sm" data-col-desc rows="1" placeholder="description"></textarea>
+    </div>
+    <div class="table-builder-column-row-actions">
+      <span class="table-builder-fk-badge hidden" data-col-fk-badge></span>
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-col-link-btn>🔗 Lier</button>
+      <button type="button" class="btn btn-outline-secondary btn-sm hidden" data-col-unlink-btn>× Délier</button>
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-col-remove>Retirer</button>
+    </div>
+    <details class="table-builder-column-advanced">
+      <summary class="small">Exemples, format, avertissement…</summary>
+      <input type="text" class="form-control form-control-sm" data-col-examples placeholder="Exemples (séparés par des virgules)">
+      <input type="text" class="form-control form-control-sm" data-col-format placeholder="Format">
+      <input type="text" class="form-control form-control-sm" data-col-valid-range placeholder="Plage valide">
+      <input type="text" class="form-control form-control-sm" data-col-warning placeholder="⚠️ Avertissement">
+    </details>
+  </div>
+</template>
+
+<template id="table-builder-rule-row-template">
+  <div class="table-builder-rule-row">
+    <input type="text" class="form-control form-control-sm" data-rule-title placeholder="titre de la règle">
+    <textarea class="form-control form-control-sm" data-rule-text rows="1" placeholder="texte de la règle"></textarea>
+    <button type="button" class="btn btn-outline-secondary btn-sm" data-rule-remove>Retirer</button>
+  </div>
+</template>
+
+<datalist id="table-builder-type-options">
+  <option value="BIGINT">
+  <option value="VARCHAR">
+  <option value="DOUBLE">
+  <option value="DATE">
+  <option value="BOOLEAN">
+</datalist>
+
+<div class="modal fade" id="my-drafts-modal" tabindex="-1" aria-labelledby="my-drafts-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="my-drafts-modal-label">Mes brouillons de table</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <div id="my-drafts-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Requis depuis l'ajout du panneau "Mes brouillons" (static/schema.js, new boosted.Modal) —
+     cette page n'utilisait auparavant aucun composant JS de Boosted (seul son CSS était
+     chargé), d'où son absence jusqu'ici. -->
+<script src="{{ url_for('static', filename='vendor/boosted/js/boosted.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape/cytoscape.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape/layout-base.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape/cose-base.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/cytoscape/cytoscape-fcose.js') }}"></script>
+<script src="{{ url_for('static', filename='correction.js') }}"></script>
+<script src="{{ url_for('static', filename='table_builder.js') }}"></script>
+<script src="{{ url_for('static', filename='schema.js') }}"></script>
+</body>
+</html>

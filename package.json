@@ -1,0 +1,10 @@
+{
+  "name": "orange-data-explorer",
+  "private": true,
+  "description": "Assets front-end du POC Data Explorer (Boosted, design system Bootstrap d'Orange).",
+  "dependencies": {
+    "boosted": "^5.3.8",
+    "cytoscape": "^3.34.0",
+    "cytoscape-fcose": "^2.2.0"
+  }
+}

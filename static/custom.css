@@ -1,0 +1,1477 @@
+/* ============================================================
+   F1 Data Explorer — accents "tour de chronométrage" par-dessus
+   Boosted (fork Bootstrap 5.3 d'Orange). Thème clair standard.
+   ============================================================ */
+
+:root {
+  --font-display: 'Barlow Condensed', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  --f1-red: #E10600;
+  --f1-amber: #F2A900;
+}
+
+.hidden { display: none !important; }
+
+/* Boosted n'a pas d'utilitaire pour ça : permet à un enfant flex de rétrécir
+   sous sa largeur de contenu naturelle (ex : texte long à côté d'un bouton). */
+.min-width-0 { min-width: 0; }
+
+/* Boosted est entièrement construit en rem : remonter/redescendre la base
+   suffit à agrandir/réduire proportionnellement boutons, formulaires, cartes,
+   modales, etc. 12px = trois réductions successives (18 → 15.3 → 13 → 11.7,
+   arrondis) depuis la base d'origine, pour un rendu plus compact dans
+   l'ensemble de l'interface. */
+html { font-size: 12px; }
+
+html, body { height: 100%; }
+
+body {
+  display: flex;
+  flex-direction: row;
+}
+
+.main-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ---------- Typographie condensée : titres, labels ---------- */
+
+.navbar-brand,
+.offcanvas-title,
+h1, h2,
+.modal-title,
+.panel-label,
+.panel-value,
+.correction-inline-title {
+  font-family: var(--font-display);
+}
+
+/* Hauteur commune à la bande du haut de la sidebar et à la navbar, pour que
+   leurs bordures inférieures s'alignent sur une seule ligne continue. Ne
+   s'applique qu'à partir de 922px : c'est le seuil où la sidebar passe en
+   mode "embarqué" (cf. .offcanvas-lg) — en dessous elle est un offcanvas
+   plein écran et la navbar doit garder sa hauteur naturelle (le contenu y
+   passe sur 2-3 lignes en mobile, une hauteur fixe le tronquerait). */
+:root { --header-h: 59px; }
+
+@media (min-width: 1024px) {
+  .timing-header {
+    /* min-height (pas height) : si le contenu de la navbar ne tient
+       exceptionnellement pas sur une ligne à cette largeur, la nav grandit
+       proprement au lieu de laisser le contenu déborder par-dessus le chat
+       en dessous. L'alignement pixel-perfect avec la bordure de la sidebar
+       (le but de --header-h) n'est garanti que tant que le contenu tient
+       sur une ligne — un défaut mineur très largement préférable à un
+       chevauchement de contenu. */
+    padding-top: 0;
+    padding-bottom: 0;
+    min-height: var(--header-h);
+    box-sizing: border-box;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .timing-header .container-fluid {
+    min-height: var(--header-h);
+    align-items: center;
+  }
+}
+
+.navbar-brand {
+  font-weight: 600;
+  font-size: 1.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.navbar-brand-group {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.timing-header .subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: var(--bs-secondary-color);
+  margin: 0;
+}
+
+/* ---------- Éléments techniques : police mono ---------- */
+
+.question-tag,
+.conv-date,
+.source-footer,
+.hint,
+.sector-progress-label,
+.answer-body table,
+.answer-body code {
+  font-family: var(--font-mono);
+}
+
+/* ---------- Bandeau : point "live" ---------- */
+
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--f1-red);
+  box-shadow: 0 0 7px 1px rgba(225, 6, 0, 0.5);
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ---------- Zone de conversation ---------- */
+
+.chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 26px;
+  max-width: 651px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.empty-state {
+  margin: auto;
+  text-align: center;
+  color: var(--bs-secondary-color);
+  max-width: 558px;
+}
+
+.empty-state p { font-size: 1.1rem; }
+
+.empty-state .grid-number {
+  font-family: var(--font-display);
+  font-size: 65px;
+  color: var(--bs-border-color);
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 17px;
+}
+
+.suggestion-pill,
+.inline-suggestion-pill {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+}
+
+/* ---------- Question de l'utilisateur ---------- */
+
+.question-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.question-tag {
+  font-size: 1rem;
+  background: var(--bs-tertiary-bg);
+  border: 1px solid var(--f1-amber);
+  padding: 8px 13px;
+  border-radius: var(--bs-border-radius);
+  max-width: 75%;
+}
+
+.question-tag .label {
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--f1-amber);
+  display: block;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+}
+
+/* ---------- Panneau de réponse ---------- */
+
+.answer-panel {
+  border: 1px solid var(--bs-border-color);
+  border-left: 3px solid var(--bs-primary);
+  background: var(--bs-body-bg);
+  border-radius: var(--bs-border-radius);
+  padding: 15px 18px;
+  box-shadow: var(--bs-box-shadow-sm);
+}
+
+.answer-panel.error {
+  border-left-color: var(--bs-secondary-color);
+}
+
+.correction-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 9px;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid rgba(25, 135, 84, 0.35);
+  border-radius: var(--bs-border-radius);
+  background: rgba(25, 135, 84, 0.08);
+  font-size: 0.88rem;
+  color: #146c43;
+}
+
+.correction-banner-icon {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.answer-body { font-size: 1.08rem; line-height: 1.7; }
+.answer-body p { margin: 0 0 8px; }
+.answer-body p:last-child { margin-bottom: 0; }
+
+.answer-body table {
+  font-size: 0.95rem;
+  margin: 5px 0 12px;
+}
+
+.answer-body thead th {
+  color: var(--bs-primary);
+  text-transform: uppercase;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+}
+
+.answer-body code {
+  background: rgba(242, 169, 0, 0.14);
+  color: #8a5c00;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.92em;
+}
+
+.source-footer {
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  letter-spacing: 0.02em;
+  padding-top: 9px;
+  border-top: 1px dashed var(--bs-border-color);
+  margin-top: 9px;
+}
+
+.source-footer .source-label {
+  color: #a37200;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-right: 5px;
+}
+
+.answer-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.answer-suggestions .suggestions-label {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: 3px;
+}
+
+.copy-btn.copied { color: var(--bs-success) !important; }
+
+/* ---------- Indicateur de chargement : temps par secteur ---------- */
+
+.sector-progress { padding: 3px 0; }
+
+.sector-progress .progress {
+  position: relative;
+  height: 9px;
+}
+
+/* Deux liserés qui découpent visuellement la barre en 3 secteurs égaux */
+.sector-progress .progress::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, transparent calc(33.333% - 1px), var(--bs-body-bg) calc(33.333% - 1px), var(--bs-body-bg) calc(33.333% + 1px), transparent calc(33.333% + 1px)),
+    linear-gradient(to right, transparent calc(66.666% - 1px), var(--bs-body-bg) calc(66.666% - 1px), var(--bs-body-bg) calc(66.666% + 1px), transparent calc(66.666% + 1px));
+  pointer-events: none;
+}
+
+.sector-progress-label {
+  margin: 7px 0 0;
+  font-size: 0.9rem;
+  color: var(--bs-secondary-color);
+  letter-spacing: 0.03em;
+}
+
+/* ---------- Barre de saisie : pit lane ---------- */
+
+.pit-lane {
+  background: var(--bs-tertiary-bg);
+  padding: 14px 26px 18px;
+}
+
+.pit-lane form { max-width: 651px; margin: 0 auto; }
+
+.pit-lane .form-control { font-size: 1.05rem; padding: .65rem 1rem; }
+
+.pit-lane .hint {
+  max-width: 651px;
+  margin: 7px auto 0;
+  font-size: 0.85rem;
+}
+
+/* ---------- Panneau latéral : chunk de source (chat) ----------
+   Même recette que .schema-main/.schema-details (schema.js) : une colonne qui
+   prend l'espace restant (le chat, centré comme avant) à côté d'un panneau fixe
+   qui affiche le chunk d'origine d'une source cliquée — au lieu de laisser cet
+   espace vide de part et d'autre du chat sur les écrans larges. */
+
+.chat-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.chat-col {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-details {
+  width: 330px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg);
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.chat-details-placeholder {
+  color: var(--bs-secondary-color);
+  font-size: 0.95rem;
+}
+
+.chat-details-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.chat-details-kind {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--f1-amber);
+}
+
+.chat-details-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin: 3px 0 4px;
+  word-break: break-word;
+}
+
+.chat-details-meta {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 12px;
+}
+
+.chat-details-body {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+  padding: 10px 12px;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .chat-main { flex-direction: column; }
+  .chat-details {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--bs-border-color);
+    max-height: 280px;
+  }
+}
+
+/* ---------- Sidebar / offcanvas : historique des sessions ---------- */
+
+/* #sidebar (au lieu de .sidebar-offcanvas seule) : Boosted cible déjà
+   .offcanvas.offcanvas-start (2 classes) pour la largeur, qui l'emporterait
+   sinon sur une simple classe malgré l'ordre de chargement des feuilles. */
+#sidebar.sidebar-offcanvas {
+  width: 221px;
+  box-shadow: 3px 0 9px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar-top {
+  height: var(--header-h);
+  box-sizing: border-box;
+}
+
+#new-chat-btn {
+  padding-top: 1.1rem;
+  padding-bottom: 1.1rem;
+  font-size: 1.15rem;
+}
+
+/* Logo "Small" Orange : artwork officiel, non retouché (charte : pas d'arrondi,
+   pas de recadrage, pas de changement de couleur). object-fit: contain garantit
+   qu'un redimensionnement ne recadre jamais l'image. */
+.brand-mark {
+  flex-shrink: 0;
+  display: block;
+  object-fit: contain;
+}
+
+/* Boosted ne réinitialise position/visibility sur .offcanvas-lg que lorsqu'il est
+   imbriqué dans .navbar-expand-lg (menu de nav) — pas pour un offcanvas autonome
+   comme cette sidebar. On reproduit ce comportement "intégré au-delà du seuil lg"
+   nous-mêmes, au même seuil que Boosted (922px, cf. static/vendor/boosted/css). */
+@media (min-width: 1024px) {
+  .sidebar-offcanvas.offcanvas-lg {
+    position: static;
+    z-index: auto;
+    display: flex;
+    visibility: visible;
+    background-color: var(--bs-body-bg);
+    border: 0;
+    border-right: 1px solid var(--bs-border-color);
+    transform: none;
+    transition: width 0.2s ease, opacity 0.15s ease;
+    overflow: hidden;
+  }
+
+  /* Repli du panneau en desktop : bascule via #sidebar-toggle (JS), en dehors
+     du système d'offcanvas de Boosted qui n'est pas conscient du seuil -lg
+     (son .show()/.hide() natif ajouterait un backdrop même ici). */
+  #sidebar.sidebar-offcanvas.offcanvas-lg.lg-collapsed {
+    width: 0;
+    opacity: 0;
+    border-right-width: 0;
+    box-shadow: none;
+  }
+}
+
+.conv-text-wrap {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.list-group-item.conversation-item { padding: .85rem 1rem; }
+
+.conv-title {
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-date {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+  margin-top: 3px;
+  letter-spacing: 0.02em;
+}
+
+.list-group-item.active .conv-date { color: inherit; opacity: 0.85; }
+
+.conv-delete-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--bs-secondary-color);
+  font-size: 0.85rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.conversation-item:hover .conv-delete-btn,
+.conversation-item:focus-within .conv-delete-btn { opacity: 1; }
+
+.conv-delete-btn:hover { background: rgba(225, 6, 0, 0.15); color: var(--f1-red); }
+
+.list-group-item.active .conv-delete-btn:hover { background: rgba(255, 255, 255, 0.25); color: inherit; }
+
+.conv-rename-input {
+  font-size: 1rem;
+  width: 100%;
+}
+
+.conv-actions-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.conv-share-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--bs-secondary-color);
+  font-size: 0.85rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, background 0.12s ease, color 0.12s ease;
+}
+
+.conversation-item:hover .conv-share-btn,
+.conversation-item:focus-within .conv-share-btn { opacity: 1; }
+
+.conv-share-btn:hover { background: rgba(242, 169, 0, 0.15); color: var(--f1-amber); }
+
+.list-group-item.active .conv-share-btn:hover { background: rgba(255, 255, 255, 0.25); color: inherit; }
+
+/* ---------- Sidebar : conversations partagées avec moi (lecture seule) ---------- */
+/* Même liste que l'historique, mais sans bouton de suppression/partage/renommage —
+   repérée par un léger liseré ambre plutôt qu'un bouton d'action, cohérent avec le
+   langage "lecture seule" déjà établi ailleurs (ex : source-chip non corrigible). */
+
+.sidebar-shared-section {
+  flex-shrink: 0;
+  max-height: 220px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-section-heading {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bs-secondary-color);
+  margin: 0.75rem 1rem 0.25rem;
+}
+
+#shared-conversation-list { overflow-y: auto; }
+
+.conversation-item-shared { border-left: 2px solid transparent; }
+
+.conversation-item-shared:hover,
+.conversation-item-shared.active { border-left-color: var(--f1-amber); }
+
+/* ---------- Sources en pied de réponse : puces cliquables ---------- */
+
+.source-chip-list { margin-left: 0.25rem; }
+
+.source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.source-sep {
+  margin: 0 0.35em;
+  color: var(--bs-secondary-color);
+}
+
+button.source-chip {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.source-chip-clickable {
+  border-bottom: 1px dashed var(--bs-border-color);
+}
+
+.source-chip-clickable:hover,
+.source-chip-clickable:focus-visible {
+  border-bottom-color: var(--bs-secondary-color);
+}
+
+.source-chip-correctable {
+  border-bottom: 1px dashed var(--f1-amber);
+}
+
+.source-chip-correctable:hover,
+.source-chip-correctable:focus-visible {
+  color: #a3720a;
+}
+
+.source-chip-icon {
+  font-size: 0.85em;
+  opacity: 0.65;
+}
+
+.source-chip-corrected {
+  color: var(--bs-success);
+  border-bottom-color: var(--bs-success);
+}
+
+.source-chip-corrected .source-chip-icon { opacity: 1; }
+
+/* ---------- Panneau de correction inline (ancré sur la source cliquée) ---------- */
+
+.correction-inline {
+  margin-top: 0.85rem;
+  border: 1px solid var(--f1-amber);
+  border-radius: var(--bs-border-radius);
+  background: rgba(242, 169, 0, 0.06);
+}
+
+.correction-inline-body { padding: 1rem; }
+
+.correction-inline-title {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  color: #a3720a;
+}
+
+.correction-inline-title code {
+  font-family: var(--font-mono);
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+
+/* Aperçu des propagations : chunks impactés proposés à la validation avant écriture. */
+.correction-prop-heading {
+  font-weight: 600;
+  color: #a3720a;
+}
+
+.correction-prop-item {
+  border-top: 1px solid rgba(242, 169, 0, 0.28);
+  padding: 0.6rem 0 0.2rem;
+}
+
+.correction-prop-item .form-check-label code {
+  font-family: var(--font-mono);
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+
+.correction-prop-details {
+  margin-top: 0.35rem;
+  margin-left: 1.6rem;
+}
+
+/* Repère tant qu'un candidat n'a pas été édité : la case cochée seule ne vaut pas relecture. */
+.correction-prop-untouched {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--bs-secondary-color);
+}
+
+.correction-prop-details summary {
+  cursor: pointer;
+  color: var(--bs-secondary-color);
+}
+
+.correction-prop-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bs-secondary-color);
+  margin: 0.4rem 0 0.15rem;
+}
+
+.correction-prop-before pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.8rem;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: var(--bs-border-radius-sm);
+  padding: 0.4rem 0.55rem;
+  margin: 0 0 0.5rem;
+}
+
+.correction-diff {
+  margin: 0.4rem 0 0.35rem 1.6rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: var(--bs-border-radius-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.correction-diff .diff-line { display: block; }
+.correction-diff .diff-ctx { color: var(--bs-secondary-color); }
+.correction-diff .diff-del {
+  background: rgba(214, 40, 40, 0.14);
+  color: #a01522;
+  text-decoration: line-through;
+  text-decoration-color: rgba(160, 21, 34, 0.4);
+}
+.correction-diff .diff-add {
+  background: rgba(28, 145, 63, 0.16);
+  color: #146b30;
+}
+
+/* ---------- Panneau de création de table (feature "+ Nouvelle table") ---------- */
+/* Même recette visuelle que .correction-inline : les deux sont des panneaux d'écriture
+   dans la KB, montés dans le même #schema-details (voir static/table_builder.js). */
+
+.table-builder {
+  margin-top: 0.85rem;
+  border: 1px solid var(--f1-amber);
+  border-radius: var(--bs-border-radius);
+  background: rgba(242, 169, 0, 0.06);
+}
+
+.table-builder-body { padding: 1rem; }
+
+.table-builder-title {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.85rem;
+  color: #a3720a;
+}
+
+.table-builder-column-row,
+.table-builder-rule-row {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-body-bg);
+  padding: 7px 9px;
+  margin-bottom: 6px;
+}
+
+.table-builder-column-row-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.table-builder-column-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.table-builder-fk-badge {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: #a3720a;
+  background: rgba(242, 169, 0, 0.12);
+  border-radius: var(--bs-border-radius-sm);
+  padding: 2px 6px;
+}
+
+.table-builder-column-advanced { margin-top: 6px; }
+
+.table-builder-column-advanced summary {
+  cursor: pointer;
+  color: var(--bs-secondary-color);
+  font-size: 0.8rem;
+}
+
+.table-builder-column-advanced input { margin-top: 4px; }
+
+.table-builder-rule-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: 6px;
+  align-items: start;
+}
+
+.table-builder-link-banner {
+  background: rgba(242, 169, 0, 0.12);
+  border-radius: var(--bs-border-radius-sm);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+}
+
+.table-builder-target-column {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-body-bg);
+  padding: 6px 9px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.table-builder-target-column:hover,
+.table-builder-target-column:focus-visible {
+  border-color: var(--f1-amber);
+}
+
+.table-builder-target-column-name {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+}
+
+.table-builder-target-column-type {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+}
+
+.table-builder-preview {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: var(--bs-border-radius-sm);
+  padding: 0.5rem 0.6rem;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* Curseur "viser" pendant le mode liaison (voir table_builder.js) : un repère en plus de
+   la bannière, pour que le graphe lui-même signale qu'un clic va choisir une cible plutôt
+   que sélectionner une table normalement. */
+#schema-cy.schema-linking-mode { cursor: crosshair; }
+
+/* ---------- Accessibilité ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none !important; }
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 600px) {
+  .chat-log { padding: 14px 12px; }
+  .pit-lane { padding: 11px 12px 13px; }
+  .question-tag { max-width: 88%; }
+}
+
+/* ============================================================
+   Dashboard — panneaux de télémétrie
+   ============================================================ */
+
+.dashboard-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 26px;
+  max-width: 911px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(182px, 1fr));
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.telemetry-panel--wide { grid-column: 1 / -1; }
+
+.panel-label {
+  font-size: 0.85rem;
+  color: var(--bs-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 3px;
+  display: block;
+}
+
+.panel-value {
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 1;
+  display: block;
+}
+
+.panel-value .unit {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 1.05rem;
+  color: var(--bs-secondary-color);
+  margin-left: 3px;
+}
+
+.panel-sub {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  letter-spacing: 0.02em;
+  display: block;
+  margin-top: 2px;
+}
+
+.panel-delta {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  margin-top: 3px;
+  display: block;
+}
+
+.panel-delta.up { color: var(--bs-danger); }
+.panel-delta.down { color: var(--bs-success); }
+
+.sparkline {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 26px;
+  margin-top: 7px;
+}
+
+.spark-bar {
+  flex: 1;
+  min-width: 3px;
+  background: rgba(242, 169, 0, 0.4);
+  border-radius: 2px 2px 0 0;
+}
+
+.spark-bar.current { background: var(--f1-amber); }
+
+.histogram {
+  display: flex;
+  align-items: flex-end;
+  gap: 9px;
+  height: 104px;
+  margin-top: 13px;
+  padding-top: 15px;
+}
+
+.histogram-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.histogram-count {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 5px;
+}
+
+.histogram-bar {
+  width: 100%;
+  max-width: 22px;
+  min-height: 2px;
+  background: var(--f1-amber);
+  border-radius: 4px 4px 0 0;
+}
+
+.histogram-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  text-align: center;
+  line-height: 1.3;
+  margin-top: 7px;
+}
+
+.readout-text {
+  font-size: 1rem;
+  font-style: italic;
+  line-height: 1.55;
+  margin: 5px 0 0;
+}
+
+.no-data {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  color: var(--bs-secondary-color);
+  padding: 8px 0;
+}
+
+@media (max-width: 600px) {
+  .dashboard-main { padding: 14px 12px; }
+  .panel-value { font-size: 23px; }
+}
+
+/* ============================================================
+   Écran de démarrage — séquence de feux façon grille de départ F1
+   ============================================================ */
+
+.startup-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bs-body-bg);
+  transition: opacity 0.4s ease;
+}
+
+.startup-screen.startup-hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.startup-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.startup-logo {
+  width: 47px;
+  height: 47px;
+  object-fit: contain;
+  animation: startup-pop 0.5s ease both;
+}
+
+.startup-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 2rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0;
+  opacity: 0;
+  animation: startup-fade-up 0.5s ease 0.2s both;
+}
+
+.startup-lights {
+  display: flex;
+  gap: 0.65rem;
+  opacity: 0;
+  animation: startup-fade-up 0.5s ease 0.35s both;
+}
+
+.startup-light {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--bs-border-color);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.startup-light.on {
+  background: var(--f1-red);
+  box-shadow: 0 0 9px 2px rgba(225, 6, 0, 0.6);
+}
+
+.startup-light.go {
+  background: var(--bs-success);
+  box-shadow: 0 0 9px 2px rgba(25, 135, 84, 0.6);
+}
+
+@keyframes startup-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes startup-fade-up {
+  from { transform: translateY(7px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .startup-logo, .startup-title, .startup-lights { animation: none !important; opacity: 1; }
+}
+
+/* ============================================================
+   Schéma — graphe interactif tables/colonnes/relations
+   ============================================================ */
+
+.schema-search-wrap {
+  position: relative;
+  max-width: 260px;
+}
+
+.schema-search {
+  max-width: 260px;
+}
+
+/* ---------- Suggestions de recherche : liste des tables/colonnes qui matchent ----------
+   Avant, la recherche ne faisait que recadrer/surligner le graphe — deviner quel noeud
+   avait matché sur un schéma à beaucoup de tables était un cycle essai-erreur. */
+
+.schema-search-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
+}
+
+.schema-search-suggestion {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.schema-search-suggestion:hover,
+.schema-search-suggestion:focus-visible {
+  background: var(--bs-tertiary-bg);
+}
+
+.schema-search-suggestion-table {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+}
+
+.schema-search-suggestion-sep {
+  color: var(--bs-secondary-color);
+}
+
+.schema-search-suggestion-column {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.schema-search-suggestion-type {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+}
+
+.schema-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.schema-graph-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+#schema-cy {
+  width: 100%;
+  height: 100%;
+}
+
+.schema-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bs-secondary-color);
+  font-family: var(--font-mono);
+}
+
+.schema-details {
+  width: 330px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg);
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.schema-details-placeholder {
+  color: var(--bs-secondary-color);
+  font-size: 0.95rem;
+}
+
+.schema-details-kind {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--f1-amber);
+}
+
+.schema-details-title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 3px 0 6px;
+}
+
+.schema-details-type {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 10px;
+}
+
+.schema-column-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.schema-column-row {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius-sm);
+  background: var(--bs-body-bg);
+  padding: 7px 9px;
+}
+
+/* Même recette que .correction-inline : f1-amber est déjà le langage établi de l'app
+   pour "mis en avant" — on le réutilise ici pour que la colonne en relation, dans le
+   panneau, se lise comme la même chose que la flèche surlignée dans le graphe. */
+.schema-column-row-fk {
+  border-color: var(--f1-amber);
+  background: rgba(242, 169, 0, 0.06);
+}
+
+.schema-column-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.schema-column-name {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+/* ✎ à côté du nom de colonne, réservé au tech lead — même sémantique visuelle (f1-amber,
+   même glyphe) que le repère éditable des puces de source du chat (.source-chip-icon). */
+.schema-column-edit-btn {
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  font-size: 0.85em;
+  line-height: 1;
+  opacity: 0.55;
+  cursor: pointer;
+  color: var(--f1-amber);
+}
+
+.schema-column-edit-btn:hover,
+.schema-column-edit-btn:focus-visible {
+  opacity: 1;
+}
+
+/* Bref flash pour repérer la ligne visée par une suggestion de recherche de type colonne
+   (schema-search-suggestion), une fois le panneau de sa table ouvert. */
+.schema-column-row-flash {
+  animation: schema-column-flash 1.2s ease-out;
+}
+
+@keyframes schema-column-flash {
+  0% { background: rgba(242, 169, 0, 0.35); }
+  100% { background: var(--bs-body-bg); }
+}
+
+.schema-column-type {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
+}
+
+.schema-column-desc {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--bs-secondary-color);
+  margin: 4px 0 0;
+}
+
+.schema-column-rel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: #a3720a;
+  margin-top: 4px;
+}
+
+@media (max-width: 800px) {
+  .schema-main { flex-direction: column; }
+  .schema-details {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--bs-border-color);
+    max-height: 180px;
+  }
+}
+
+/* ---------- Badge d'identité : distinguer tech lead et utilisateur ---------- */
+
+/* #user-badge (id, pas de classe .user-badge) : !important nécessaire, Boosted
+   applique déjà color/background-color en !important sur .text-bg-secondary
+   (présent en permanence dans le HTML). */
+#user-badge.user-badge-techlead {
+  background-color: var(--f1-amber) !important;
+  color: #2b2200 !important;
+  border-color: var(--f1-amber);
+}
+
+/* ============================================================
+   Schéma — FK à cible inconnue et propositions de définition
+   Reprend le langage visuel déjà en place : f1-amber = "à traiter / attention",
+   gris secondaire = "non établi". Le ⚠️ (cible prouvée distincte) et le ? (rien
+   d'établi) ne partagent volontairement PAS la même couleur : les confondre
+   effacerait la distinction que l'inventaire des FK prend soin d'enregistrer.
+   ============================================================ */
+
+.schema-fk-badge {
+  border: none;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.18rem 0.42rem;
+  margin-left: 0.35rem;
+  cursor: pointer;
+}
+.schema-fk-badge-distinct { background: rgba(242, 169, 0, 0.18); color: #8a5c00; }
+.schema-fk-badge-unknown  { background: rgba(108, 117, 125, 0.16); color: #495057; }
+.schema-fk-badge:hover    { filter: brightness(0.94); }
+.schema-fk-badge-open     { outline: 2px solid var(--f1-amber); outline-offset: 1px; }
+
+.schema-column-row-distinct { border-left: 3px solid var(--f1-amber); padding-left: 0.5rem; }
+.schema-column-row-unknown  { border-left: 3px dotted #adb5bd;        padding-left: 0.5rem; }
+
+.schema-prop-zone {
+  margin-top: 0.5rem;
+  padding: 0.55rem 0.65rem;
+  background: rgba(0, 0, 0, 0.025);
+  border-radius: 6px;
+}
+.schema-prop-explain { font-size: 0.78rem; color: #6c757d; margin: 0 0 0.5rem; }
+.schema-prop-empty   { font-size: 0.78rem; color: #adb5bd; margin: 0 0 0.5rem; font-style: italic; }
+
+.schema-proposition {
+  background: #fff;
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 5px;
+  padding: 0.45rem 0.55rem;
+  margin-bottom: 0.4rem;
+}
+.schema-prop-text { font-size: 0.83rem; margin: 0.3rem 0 0; white-space: pre-wrap; }
+
+.schema-prop-badge {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  padding: 0.14rem 0.45rem;
+}
+/* Le badge "non vérifié" est délibérément voyant : c'est lui qui empêche de lire
+   une hypothèse d'utilisateur comme un fait documenté. */
+.schema-prop-badge-pending { background: rgba(242, 169, 0, 0.2); color: #8a5c00; }
+.schema-prop-badge-ok      { background: rgba(25, 135, 84, 0.15); color: #146c43; }
+.schema-prop-badge-ko      { background: rgba(108, 117, 125, 0.15); color: #495057; }
+.schema-proposition-rejetee { opacity: 0.6; }
+
+.schema-prop-actions { display: flex; gap: 0.4rem; margin-top: 0.45rem; }
+.schema-prop-form    { display: flex; flex-direction: column; gap: 0.4rem; }
+.schema-prop-form button { align-self: flex-start; }
+.schema-prop-error   { font-size: 0.78rem; color: var(--f1-red); margin: 0.25rem 0 0; }
+
+/* Légende du schéma — posée en surimpression en bas à gauche du canevas, pour ne pas
+   voler de hauteur au graphe. pointer-events: none : elle ne doit jamais intercepter un
+   glissement d'arête qui passerait dessous. */
+.schema-legend {
+  position: absolute;
+  left: 0.85rem;
+  bottom: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.9rem;
+  max-width: calc(100% - 1.7rem);
+  padding: 0.4rem 0.7rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 6px;
+  font-size: 0.74rem;
+  color: #495057;
+  pointer-events: none;
+}
+.schema-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+.schema-legend-swatch {
+  display: inline-block;
+  width: 22px;
+  height: 13px;
+  border-radius: 3px;
+  background: #fff;
+}
+.swatch-solid  { border: 2px solid #212529; }
+.swatch-dotted { border: 2px dotted #6c757d; }
+.swatch-dashed { border: 2px dashed #6c757d; background: #f2f2f2; }
+.schema-legend-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  background: rgba(108, 117, 125, 0.16);
+  color: #495057;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+.schema-legend-hint { color: #adb5bd; font-style: italic; }

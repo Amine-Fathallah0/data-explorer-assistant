@@ -1,0 +1,36 @@
+# --- Secrets ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Not published -----------------------------------------------------------
+# The real knowledge base documents a private data warehouse; a fictional
+# sample lives in examples/knowledge-base instead.
+/knowledge-base/
+/PROJECT_TOUR.md
+/Resume du codebase - Data Explorer Assistant.md
+/img/
+
+# --- Local data ----------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Python ----------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+tempCodeRunnerFile.py
+
+# --- Node (front-end assets are vendored in static/vendor) -----------------------
+node_modules/
+
+# --- Editors and tools -------------------------------------------------------------
+.claude/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

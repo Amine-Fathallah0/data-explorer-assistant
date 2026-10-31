@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Explorer — Orange</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/boosted/css/boosted.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='custom.css') }}">
+</head>
+<body>
+
+<div class="startup-screen" id="startup-screen" aria-hidden="true">
+  <div class="startup-content">
+    <img class="startup-logo" src="{{ url_for('static', filename='img/logo.png') }}" width="47" height="47" alt="">
+    <h1 class="startup-title">Data Explorer</h1>
+    <div class="startup-lights">
+      <span class="startup-light"></span>
+      <span class="startup-light"></span>
+      <span class="startup-light"></span>
+      <span class="startup-light"></span>
+      <span class="startup-light"></span>
+    </div>
+  </div>
+</div>
+
+<div class="offcanvas offcanvas-lg offcanvas-start sidebar-offcanvas" tabindex="-1" id="sidebar" aria-labelledby="sidebar-label">
+  <div class="offcanvas-header border-bottom">
+    <h2 class="offcanvas-title h6 text-uppercase mb-0" id="sidebar-label">Historique</h2>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Fermer"></button>
+  </div>
+  <div class="offcanvas-body d-flex flex-column p-0">
+    <div class="px-3 border-bottom d-flex align-items-center gap-2 sidebar-top">
+      <img class="brand-mark" src="{{ url_for('static', filename='img/logo.png') }}" width="18" height="18" alt="">
+
+      <button class="btn btn-outline-primary flex-fill" id="new-chat-btn" type="button">+ Nouvelle session</button>
+    </div>
+    <nav class="list-group list-group-flush flex-grow-1 overflow-auto" id="conversation-list" aria-label="Historique des conversations">
+      <!-- les conversations sont injectées ici en JS -->
+    </nav>
+    <div class="sidebar-shared-section hidden border-top" id="shared-conversations-section">
+      <h3 class="sidebar-section-heading" id="shared-conversations-heading">Partagées avec moi</h3>
+      <nav class="list-group list-group-flush overflow-auto" id="shared-conversation-list" aria-label="Conversations partagées avec moi">
+        <!-- les conversations partagées sont injectées ici en JS -->
+      </nav>
+    </div>
+  </div>
+</div>
+
+<div class="main-panel">
+<nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom sticky-top timing-header">
+  <div class="container-fluid flex-wrap gap-2">
+    <button class="btn btn-outline-secondary" type="button" id="sidebar-toggle" aria-controls="sidebar" aria-expanded="true" aria-label="Basculer l'historique">☰</button>
+    <span class="live-dot" aria-hidden="true"></span>
+    <div class="navbar-brand-group me-auto">
+      <span class="navbar-brand mb-0">Data Explorer</span>
+      <p class="subtitle mb-0">Assistant métadonnées · bio_vente &amp; bio_refgeographie · POC Sofrecom / Orange</p>
+    </div>
+    <div class="auth-area d-flex align-items-center gap-2" id="auth-area">
+      <span class="badge text-bg-secondary hidden" id="user-badge"></span>
+      {% if session.get('role') == 'tech_lead' %}
+      <button class="btn btn-outline-secondary" id="my-corrections-btn" type="button">Mes corrections</button>
+      {% endif %}
+      <button class="btn btn-outline-secondary hidden" id="login-open-btn" type="button">Connexion</button>
+      <button class="btn btn-outline-secondary hidden" id="logout-btn" type="button">Déconnexion</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('schema') }}">Schéma →</a>
+      {% if session.get('role') == 'tech_lead' %}
+      <a class="btn btn-outline-secondary" href="{{ url_for('dashboard') }}">Télémétrie →</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<div class="chat-main">
+  <div class="chat-col">
+    <main class="chat-log" id="chat-log">
+      <div class="empty-state" id="empty-state">
+        <div class="grid-number">POCéMIN</div>
+        <p>Posez une question sur la structure des datasets Orange — colonnes, règles métier, relations entre tables.</p>
+        <div class="suggestions">
+          <button class="btn btn-outline-secondary rounded-pill suggestion-pill" type="button">c'est quoi IdCanalDistribution ?</button>
+          <button class="btn btn-outline-secondary rounded-pill suggestion-pill" type="button">comment joindre vente et la géographie IRIS ?</button>
+          <button class="btn btn-outline-secondary rounded-pill suggestion-pill" type="button">le grain de dwh_fact_Vente_t ?</button>
+        </div>
+      </div>
+    </main>
+
+    <div class="pit-lane border-top">
+      <form id="ask-form" class="d-flex gap-2" autocomplete="off">
+        <input
+          type="text"
+          class="form-control"
+          id="question-input"
+          name="question"
+          placeholder="Ex : c'est quoi la colonne positionText dans results ?"
+          required
+          maxlength="300"
+        >
+        <button type="submit" class="btn btn-primary" id="submit-btn">Envoyer</button>
+      </form>
+      <p class="hint form-text">Répond uniquement sur la structure du modèle de données — pas sur le contenu réel des courses.</p>
+    </div>
+  </div>
+
+  <aside class="chat-details" id="chat-details">
+    <div class="chat-details-placeholder" id="chat-details-placeholder">
+      <p>Cliquez sur une source (« Informations fournies par ») pour voir le chunk d'origine.</p>
+    </div>
+    <div class="chat-details-content hidden" id="chat-details-content">
+      <div class="chat-details-header">
+        <div class="min-width-0">
+          <span class="chat-details-kind">Source</span>
+          <h2 class="chat-details-title" id="chat-details-title"></h2>
+          <p class="chat-details-meta" id="chat-details-meta"></p>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm hidden" id="chat-details-edit-btn">✎ Corriger</button>
+      </div>
+      <pre class="chat-details-body" id="chat-details-body"></pre>
+    </div>
+    <div id="chat-correction-mount"></div>
+  </aside>
+</div>
+</div>
+
+<div class="modal fade" id="login-overlay" tabindex="-1" aria-labelledby="login-overlay-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="login-form">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="login-overlay-label">Connexion</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" for="login-username">Utilisateur</label>
+            <input type="text" class="form-control" id="login-username" autocomplete="username" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="login-password">Mot de passe</label>
+            <input type="password" class="form-control" id="login-password" autocomplete="current-password" required>
+          </div>
+          <p class="text-danger small hidden mb-0" id="login-error"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" id="login-cancel-btn">Continuer sans se connecter</button>
+          <button type="submit" class="btn btn-primary">Se connecter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Gabarit du panneau de correction inline, partagé avec le schéma (voir static/correction.js) :
+     cloné puis monté dans #chat-correction-mount par app.js, jamais affiché directement. -->
+<template id="correction-inline-template">
+  <div class="correction-inline hidden">
+    <div class="correction-inline-body">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="correction-inline-title">Corriger <code data-correction-target></code></span>
+        <button type="button" class="btn-close" data-correction-close aria-label="Fermer"></button>
+      </div>
+      <div class="mb-2">
+        <textarea class="form-control" data-correction-input rows="3" placeholder="Écrivez votre correction, n'importe quel style..."></textarea>
+      </div>
+      <div class="mb-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-correction-prepare>Préparer la correction</button>
+      </div>
+      <div data-correction-preview class="hidden mb-2">
+        <div class="mb-3">
+          <label class="form-label small">Correction principale — réécrite au style de la doc (éditable)</label>
+          <textarea class="form-control" data-correction-primary rows="4"></textarea>
+        </div>
+        <div data-correction-propagations></div>
+      </div>
+      <p class="text-danger small hidden mb-2" data-correction-error></p>
+      <p class="text-success small hidden mb-2" data-correction-success></p>
+      <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-correction-cancel>Annuler</button>
+        <button type="button" class="btn btn-primary btn-sm" data-correction-apply disabled>Confirmer et appliquer</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<div class="modal fade" id="my-corrections-modal" tabindex="-1" aria-labelledby="my-corrections-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="my-corrections-modal-label">Mes corrections</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <div id="my-corrections-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Partage d'une conversation (lecture seule) avec un autre utilisateur enregistré —
+     ouvert depuis le bouton ⇄ de chaque conversation possédée (voir app.js). -->
+<div class="modal fade" id="share-modal" tabindex="-1" aria-labelledby="share-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title h5" id="share-modal-label">Partager la conversation</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body">
+        <form id="share-form" class="d-flex gap-2 mb-3" autocomplete="off">
+          <input type="text" class="form-control" id="share-username-input" placeholder="Nom d'utilisateur" maxlength="60" required>
+          <button type="submit" class="btn btn-primary flex-shrink-0" id="share-add-btn">Partager</button>
+        </form>
+        <p class="text-danger small hidden mb-2" id="share-error"></p>
+        <div id="share-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/boosted/js/boosted.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='correction.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

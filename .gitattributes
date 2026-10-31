@@ -1,0 +1,8 @@
+# Normalise line endings in the repository; Windows checkouts still get CRLF.
+* text=auto
+
+*.png binary
+*.jpg binary
+
+# Third-party front-end bundles: keep them out of GitHub's language statistics.
+static/vendor/** linguist-vendored
