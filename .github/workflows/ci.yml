@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt ruff
+
+      - name: Lint (syntax errors and undefined names)
+        run: ruff check . --select E9,F63,F7,F82 --output-format github
+
+      - name: Byte-compile every module
+        run: python -m compileall -q .
+
+      - name: Smoke test on the sample knowledge base
+        env:
+          INGEST_DATA_PATH: examples/knowledge-base
+        run: |
+          python - <<'EOF'
+          import db
+          import kb_meta
+          import kb_schema
+
+          db.init_db()
+
+          docs = kb_meta._all_docs()
+          assert docs, "no chunk parsed from the sample knowledge base"
+
+          graph = kb_schema.build_schema_graph()
+          tables = {t["name"] for t in graph["tables"]}
+          assert {"fact_commande", "dim_client", "dim_magasin"} <= tables, tables
+          assert len(graph["relations"]) == 2, graph["relations"]
+          assert len(graph["unresolved"]) == 1, graph["unresolved"]
+
+          print(f"{len(docs)} chunks, {len(tables)} tables, {len(graph['relations'])} relations")
+          EOF
+
+  frontend:
+    name: Front-end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check JavaScript syntax
+        run: for f in static/*.js; do node --check "$f"; done
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
